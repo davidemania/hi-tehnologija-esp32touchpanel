@@ -1,11 +1,34 @@
-/*Using LVGL with Arduino requires some extra steps:
- *Be sure to read the docs here: https://docs.lvgl.io/master/get-started/platforms/arduino.html  */
+// ********************************************************************************* //
+// *   _    _ _     _______               _     _____  _           _               * //
+// *  | |  | (_)   |__   __|             | |   |  __ \(_)         | |              * //
+// *  | |__| |_ ______| | ___  _   _  ___| |__ | |  | |_ ___ _ __ | | __ _ _   _   * //
+// *  |  __  | |______| |/ _ \| | | |/ __| '_ \| |  | | / __| '_ \| |/ _` | | | |  * //
+// *  | |  | | |      | | (_) | |_| | (__| | | | |__| | \__ \ |_) | | (_| | |_| |  * //
+// *  |_|  |_|_|      |_|\___/ \__,_|\___|_| |_|_____/|_|___/ .__/|_|\__,_|\__, |  * //
+// *                                                        | |             __/ |  * //
+// *                                                        |_|            |___/   * //
+// *                                                                               * //
+// * Touch controller for Hi-HLM Smart Door Project                                * //
+// * Based on Waveshare ESP32-S3-Touch-LCD-2.8B Module                             * //
+// * By Davide Manià 2025, (c) Studio Cogitamus & Hi-Tehnologija doo               * //
+// * For info and support contact software@cogitamus.it                            * //
+// *                                                                               * //
+// ********************************************************************************* //
+
+// Using LVGL with Arduino requires some extra steps:
+// Be sure to read the docs here: https://docs.lvgl.io/master/get-started/platforms/arduino.html  */
 
 #include "LVGL_Driver.h"
 #include "Display_ST7701.h"
 
+// *********************************************************************************
+// If you embed the image as a C array from LVGL's image converter:
+
+LV_IMG_DECLARE(splash_480x640); // 480x640, RGB565, no alpha
+
+// *********************************************************************************
+
 static lv_obj_t * tv;
-static lv_obj_t * calendar;
 lv_style_t style_text_muted;
 lv_style_t style_title;
 static lv_style_t style_icon;
@@ -15,12 +38,15 @@ static const lv_font_t * font_large;
 static const lv_font_t * font_normal;
 
 static lv_timer_t * auto_step_timer;
-// static lv_color_t original_screen_bg_color;
 
-// static lv_timer_t * meter2_timer;
+void show_splash(void);
+static void splash_done_cb(lv_timer_t *t);
+static void backlight_fade(uint8_t from, uint8_t to, uint16_t ms);
 
 lv_obj_t * SD_Size;
 lv_obj_t * Backlight_slider;
+
+// *********************************************************************************
 
 void buildUiPanel(void)
 {
@@ -54,6 +80,8 @@ void buildUiPanel(void)
   Onboard_create(t1);
 }
 
+// *********************************************************************************
+
 static void led_event_cb(lv_event_t *e)
 {
     lv_obj_t *led = (lv_obj_t *)lv_event_get_user_data(e);
@@ -70,6 +98,8 @@ static void led_event_cb(lv_event_t *e)
       Set_EXIO(EXIO_PIN8,Low);
     }
 }
+
+// *********************************************************************************
 
 static void Buzzer_create(lv_obj_t * parent)
 {
@@ -90,14 +120,10 @@ static void Buzzer_create(lv_obj_t * parent)
   lv_obj_add_event_cb(sw, led_event_cb, LV_EVENT_ALL, led);
 }
 
-void Lvgl_Example1_close(void)
+// *********************************************************************************
+
+void close_ui_panel(void)
 {
-  /*Delete all animation*/
-  // lv_anim_del(NULL, NULL);
-
-  // lv_timer_del(meter2_timer);
-  // meter2_timer = NULL;
-
   lv_obj_clean(lv_scr_act());
 
   lv_style_reset(&style_text_muted);
@@ -106,9 +132,10 @@ void Lvgl_Example1_close(void)
   lv_style_reset(&style_bullet);
 }
 
+// *********************************************************************************
+
 static void Onboard_create(lv_obj_t * parent)
 {
-
   /*Create a panel*/
   lv_obj_t * panel1 = lv_obj_create(parent);
   lv_obj_set_height(panel1, LV_SIZE_CONTENT);
@@ -212,6 +239,8 @@ static void Onboard_create(lv_obj_t * parent)
   auto_step_timer = lv_timer_create(lv_timer_tick, 100, NULL);
 }
 
+// *********************************************************************************
+
 void lv_timer_tick(lv_timer_t * t)
 {
   char buf[100]; 
@@ -223,6 +252,8 @@ void lv_timer_tick(lv_timer_t * t)
   Set_Backlight(LCD_Backlight);
 }
 
+// *********************************************************************************
+
 void Backlight_adjustment_event_cb(lv_event_t * e)
 {
   uint8_t Backlight = lv_slider_get_value(lv_event_get_target(e));
@@ -233,34 +264,90 @@ void Backlight_adjustment_event_cb(lv_event_t * e)
     LCD_Backlight = Backlight;
     Set_Backlight(Backlight);
   }
-  else
-    printf("Volume out of range: %d\n", Backlight);
-
 }
+
+// *********************************************************************************
 
 static void ta_event_cb(lv_event_t * e)
 {
 }
 
+// *********************************************************************************
+
 void Driver_Init()
+{
+  
+}
+
+// *********************************************************************************
+
+void setup()
 {
   I2C_Init();
   TCA9554PWR_Init(0x00);
   Set_EXIO(EXIO_PIN8,Low);
   Backlight_Init();
-}
-
-void setup()
-{
-  Driver_Init();
+    
   LCD_Init();
   Lvgl_Init();
 
   buildUiPanel();
 }
 
+// *********************************************************************************
+
 void loop()
 {
   Lvgl_Loop();
   delay(5);
 }
+
+// *********************************************************************************
+
+void splash_done_cb(lv_timer_t *t)
+{
+  lv_obj_t *splash = (lv_obj_t *)t->user_data;
+  lv_timer_del(t);            // one-shot
+  lv_obj_del(splash);         // free splash screen
+  buildUiPanel();             // go to your normal UI
+}
+
+// *********************************************************************************
+
+void backlight_fade(uint8_t from, uint8_t to, uint16_t ms)
+{
+  uint32_t t0 = millis();
+  while (millis() - t0 < ms)
+  {
+    uint32_t t = millis() - t0;
+    uint8_t v = from + (int)( (to - from) * (float)t / ms );
+    Set_Backlight(v);
+    lv_timer_handler();
+    delay(5);
+  }
+}
+
+// *********************************************************************************
+
+void show_splash(void)
+{
+  // bare screen with solid background
+  lv_obj_t *splash = lv_obj_create(NULL);
+  lv_obj_remove_style_all(splash);
+  lv_obj_set_style_bg_color(splash, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(splash, LV_OPA_COVER, 0);
+
+  // full-screen image
+  lv_obj_t *img = lv_img_create(splash);
+  lv_img_set_src(img, &splash_480x640);
+  lv_obj_center(img);
+
+  // display it
+  lv_scr_load(splash);
+
+  // keep ~2s, then switch to your main UI
+  lv_timer_create(splash_done_cb, 2000, splash);
+}
+
+// *********************************************************************************
+// *********************************************************************************
