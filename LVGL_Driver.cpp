@@ -70,7 +70,7 @@ void Lvgl_Touchpad_Read( lv_indev_drv_t * indev_drv, lv_indev_data_t * data )
 void lvgl_tick_update(void *arg)
 {
     /* Tell LVGL how many milliseconds has elapsed */
-    lv_tick_inc(EXAMPLE_LVGL_TICK_PERIOD_MS);
+    lv_tick_inc(LVGL_TICK_PERIOD_MS);
 }
 
 void Lvgl_Init(void)
@@ -101,9 +101,9 @@ void Lvgl_Init(void)
   lv_indev_drv_register( &indev_drv );
 
   /* Create simple label */
-  lv_obj_t *label = lv_label_create( lv_scr_act() );
-  lv_label_set_text( label, "Hello Arduino and LVGL!");
-  lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );
+  // lv_obj_t *label = lv_label_create( lv_scr_act() );
+  // lv_label_set_text( label, "Hello Arduino and LVGL!");
+  // lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );
 
   const esp_timer_create_args_t lvgl_tick_timer_args = {
     .callback = &lvgl_tick_update,
@@ -111,7 +111,7 @@ void Lvgl_Init(void)
   };
   esp_timer_handle_t lvgl_tick_timer = NULL;
   esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer);
-  esp_timer_start_periodic(lvgl_tick_timer, EXAMPLE_LVGL_TICK_PERIOD_MS * 1000);
+  esp_timer_start_periodic(lvgl_tick_timer, LVGL_TICK_PERIOD_MS * 1000);
 
 }
 

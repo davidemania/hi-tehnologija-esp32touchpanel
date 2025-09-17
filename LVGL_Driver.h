@@ -17,6 +17,10 @@
 
 #pragma once
 
+// #define LV_CONF_INCLUDE_SIMPLE
+// #define LV_CONF_PATH lv_conf.h
+
+// #include "lv_conf.h"
 #include <lvgl.h>
 #include "lv_conf.h"
 #include <esp_heap_caps.h>
@@ -27,8 +31,7 @@
 #define LVGL_HEIGHT    ESP_PANEL_LCD_HEIGHT
 #define LVGL_BUF_LEN  (LVGL_WIDTH * LVGL_HEIGHT * sizeof(lv_color_t))
 
-#define EXAMPLE_LVGL_TICK_PERIOD_MS  2
-
+#define LVGL_TICK_PERIOD_MS 2
 
 extern lv_disp_drv_t disp_drv;
 
