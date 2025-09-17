@@ -128,6 +128,8 @@ void initStyles()
   lv_style_init(&styleLabelMmr);
   lv_style_init(&styleScreen);
 
+  lv_style_set_bg_color(&styleScreen, lv_color_hex(COLOR_BG_SCREEN));
+  lv_obj_add_style(lv_scr_act(), &styleScreen, LV_STATE_DEFAULT);
 
   lv_style_set_border_width(&styleButtonMmr, 2);
   // lv_style_set_border_opa(&styleButtonMmr, LV_OPA_20);
@@ -137,11 +139,14 @@ void initStyles()
   // lv_style_set_border_opa(&styleButtonDnd, LV_OPA_20);
   lv_style_set_radius(&styleButtonDnd, BUTTON_RADIUS);
 
-  lv_style_set_bg_color(&styleScreen, lv_color_hex(COLOR_BG_SCREEN));
   lv_style_set_text_font(&styleLabelDnd, font_large);
   lv_style_set_text_font(&styleLabelMmr, font_large);
 
-  lv_obj_add_style(lv_scr_act(), &styleScreen, LV_STATE_DEFAULT);
+  lv_obj_add_style(button_do_not_disturb, &styleButtonDnd, LV_STATE_DEFAULT);
+  lv_obj_add_style(button_clean_my_room, &styleButtonMmr, LV_STATE_DEFAULT);
+
+  lv_obj_add_style(label_dnd, &styleLabelDnd, LV_STATE_DEFAULT);
+  lv_obj_add_style(label_mmr, &styleLabelMmr, LV_STATE_DEFAULT);
 
   setStyleOff();
 }
@@ -163,17 +168,16 @@ void setStyleOff()
   lv_style_set_border_width(&styleButtonMmr, 2);
   // lv_style_set_border_opa(&styleButtonMmr, LV_OPA_20);
   lv_style_set_radius(&styleButtonMmr, BUTTON_RADIUS);
-
-  lv_obj_add_style(button_do_not_disturb, &styleButtonDnd, LV_STATE_DEFAULT);
-  lv_obj_add_style(button_clean_my_room, &styleButtonMmr, LV_STATE_DEFAULT);
   
   // labels
   lv_style_set_text_color(&styleLabelDnd, lv_color_black());
   lv_style_set_text_color(&styleLabelMmr, lv_color_black());
 
-  lv_obj_add_style(label_dnd, &styleLabelDnd, LV_STATE_DEFAULT);
-  lv_obj_add_style(label_mmr, &styleLabelMmr, LV_STATE_DEFAULT);
-
+  // Tell LVGL the attached styles changed
+  lv_obj_report_style_change(&styleButtonDnd);
+  lv_obj_report_style_change(&styleButtonMmr);
+  lv_obj_report_style_change(&styleLabelDnd);
+  lv_obj_report_style_change(&styleLabelMmr);
 }
 
 // *********************************************************************************
@@ -186,7 +190,9 @@ void setStyleDndOn()
   lv_obj_add_style(button_do_not_disturb, &styleButtonDnd, LV_STATE_DEFAULT);
   
   lv_style_set_text_color(&styleLabelDnd, lv_color_white());
-  lv_obj_add_style(label_dnd, &styleLabelDnd, LV_STATE_DEFAULT);
+
+  lv_obj_report_style_change(&styleButtonDnd);
+  lv_obj_report_style_change(&styleLabelDnd);
 }
 
 // *********************************************************************************
@@ -196,10 +202,10 @@ void setStyleMmrOn()
   lv_style_set_bg_color(&styleButtonMmr, lv_color_hex(COLOR_BG_BUTTON_MMR));
   lv_style_set_border_color(&styleButtonMmr, lv_color_hex(BUTTON_BORDER_COLOR));
 
-  lv_obj_add_style(button_clean_my_room, &styleButtonMmr, LV_STATE_DEFAULT);
-  
   lv_style_set_text_color(&styleLabelMmr, lv_color_white());
-  lv_obj_add_style(label_mmr, &styleLabelMmr, LV_STATE_DEFAULT);
+
+  lv_obj_report_style_change(&styleButtonMmr);
+  lv_obj_report_style_change(&styleLabelMmr);
 }
 
 // *********************************************************************************
