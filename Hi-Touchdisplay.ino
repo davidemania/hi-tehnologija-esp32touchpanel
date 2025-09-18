@@ -53,7 +53,9 @@ void setup()
   LCD_Init();
   Lvgl_Init();
 
-  buildUiPanel();
+  show_splash();
+  // delay(5000);
+  // buildUiPanel();
   Serial.println("Initialization done!");
 }
 

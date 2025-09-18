@@ -1,5 +1,3 @@
-#include "misc/lv_color.h"
-#include "esp32-hal.h"
 // ********************************************************************************* //
 // *   _    _ _     _______               _     _____  _           _               * //
 // *  | |  | (_)   |__   __|             | |   |  __ \(_)         | |              * //
@@ -27,33 +25,89 @@
 #define COLOR_BG_BUTTON_INACTIVE 0x808080
 #define COLOR_BG_SCREEN 0x000000
 
-#define BUTTON_BORDER_COLOR 0xfffff
+#define BUTTON_BORDER_COLOR 0xffffff
 
 #define BUTTON_RADIUS 20
 
 #define BUZZER_PIN EXIO_PIN8
 
+// Language index
+typedef enum {
+    LANG_EN = 0, // English
+    LANG_IT,     // Italian
+    LANG_FR,     // French
+    LANG_ES,     // Spanish
+    LANG_DE,     // German
+    LANG_PT,     // Portuguese
+    LANG_COUNT
+} Lang;
+
+// Display names (endonyms)
+static const char * const LANG_NAMES[LANG_COUNT] = {
+    " English",
+    " Italiano",
+    " Français",
+    " Español",
+    " Deutsch",
+    " Português"
+};
+
+// “Please make up room”
+static const char * const MSG_MAKE_UP_ROOM[LANG_COUNT] = {
+    "Please clean room",         // EN
+    "Per favore, pulizia",       // IT
+    "S'il vous plaît, ménage",   // FR
+    // "SVP, ménage",   // FR
+    "Por favor, limpieza",       // ES
+    "Bitte Reinigung",           // DE
+    "Por favor, limpeza"         // PT
+};
+
+// “Do not disturb”
+static const char * const MSG_DO_NOT_DISTURB[LANG_COUNT] = {
+    "Do Not Disturb",       // EN
+    "Non disturbare",       // IT
+    "Ne pas déranger",      // FR
+    "No molestar",          // ES
+    "Bitte nicht stören",   // DE
+    "Não incomodar"         // PT
+};
+
 // *********************************************************************************
 // If you embed the image as a C array from LVGL's image converter:
 
-LV_IMG_DECLARE(splash_480x640); // 480x640, RGB565, no alpha
+// LV_IMG_DECLARE(splash_480x640); // 480x640, RGB565, no alpha
 
 // *********************************************************************************
 
 static const lv_font_t *font_large;
 static const lv_font_t *font_normal;
+static const lv_font_t *font_icon;
 
 static lv_style_t styleButtonMmr;
 static lv_style_t styleButtonDnd;
+static lv_style_t styleButtonSettings;
 static lv_style_t styleScreen;
 static lv_style_t styleLabelMmr;
 static lv_style_t styleLabelDnd;
+static lv_style_t styleLabelSettings;
+
+static lv_style_t style_radio;
+static lv_style_t style_radio_chk;
+static uint32_t active_language_index = 0;
 
 static lv_obj_t *button_clean_my_room;
 lv_obj_t *button_do_not_disturb;
+lv_obj_t *button_settings;
 static lv_obj_t *Backlight_slider;
 static lv_obj_t * label_dnd;
 static lv_obj_t * label_mmr;
+static lv_obj_t * label_settings;
+
+static lv_obj_t * screen_home;
+static lv_obj_t * screen_settings;
+
+lv_obj_t *splash_img;
 
 static lv_timer_t * auto_step_timer;
 
@@ -120,16 +174,29 @@ static void button_do_not_disturb_event_cb(lv_event_t * e)
 
 // *********************************************************************************
 
+static void button_settings_event_cb(lv_event_t * e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  // lv_obj_t * btn = lv_event_get_target(e);
+  if(code == LV_EVENT_CLICKED)
+  {
+    Set_EXIO(BUZZER_PIN, HIGH);
+    delay(100);
+    Set_EXIO(BUZZER_PIN, LOW);
+
+    lv_scr_load(screen_settings);
+  }
+}
+
+// *********************************************************************************
+
 void initStyles()
 {
   lv_style_init(&styleButtonDnd);
   lv_style_init(&styleButtonMmr);
   lv_style_init(&styleLabelDnd);
   lv_style_init(&styleLabelMmr);
-  lv_style_init(&styleScreen);
-
-  lv_style_set_bg_color(&styleScreen, lv_color_hex(COLOR_BG_SCREEN));
-  lv_obj_add_style(lv_scr_act(), &styleScreen, LV_STATE_DEFAULT);
+  lv_style_init(&styleLabelSettings);
 
   lv_style_set_border_width(&styleButtonMmr, 2);
   // lv_style_set_border_opa(&styleButtonMmr, LV_OPA_20);
@@ -147,6 +214,12 @@ void initStyles()
 
   lv_obj_add_style(label_dnd, &styleLabelDnd, LV_STATE_DEFAULT);
   lv_obj_add_style(label_mmr, &styleLabelMmr, LV_STATE_DEFAULT);
+
+  lv_style_set_text_font(&styleLabelSettings, font_icon);
+  lv_obj_add_style(label_settings, &styleLabelSettings, LV_STATE_DEFAULT);
+
+  lv_style_set_bg_color(&styleButtonSettings, lv_color_hex(COLOR_BG_BUTTON_INACTIVE));
+  lv_obj_add_style(button_settings, &styleButtonSettings, LV_STATE_DEFAULT);
 
   setStyleOff();
 }
@@ -210,10 +283,24 @@ void setStyleMmrOn()
 
 // *********************************************************************************
 
+void languageChanged(int index)
+{
+  lv_label_set_text(label_mmr, MSG_MAKE_UP_ROOM[index]);
+  lv_label_set_text(label_dnd, MSG_DO_NOT_DISTURB[index]);
+}
+
+// *********************************************************************************
+
 void buildUiPanel()
 {
-  font_large = &lv_font_montserrat_36; // LV_FONT_DEFAULT;                             
-  font_normal = &lv_font_montserrat_24; // LV_FONT_DEFAULT;                         
+  LV_FONT_DECLARE(montserrat_extended);
+  font_large = &montserrat_extended;                             
+  // font_large = &lv_font_montserrat_36; // LV_FONT_DEFAULT;                             
+  font_normal = &lv_font_montserrat_24; // LV_FONT_DEFAULT;
+  font_icon = &lv_font_montserrat_32;
+
+  lv_style_set_bg_color(&styleScreen, lv_color_hex(COLOR_BG_SCREEN));
+  lv_obj_report_style_change(&styleScreen);
 
   button_clean_my_room = lv_btn_create(lv_scr_act());
   lv_obj_set_pos(button_clean_my_room, 20, 20);
@@ -221,7 +308,7 @@ void buildUiPanel()
   lv_obj_add_event_cb(button_clean_my_room, button_clean_my_room_event_cb, LV_EVENT_ALL, NULL);
 
   label_mmr = lv_label_create(button_clean_my_room);
-  lv_label_set_text(label_mmr, "Please clean Room");
+  // lv_label_set_text(label_mmr, "Please clean Room");
   lv_obj_center(label_mmr);
 
   button_do_not_disturb = lv_btn_create(lv_scr_act());
@@ -230,13 +317,13 @@ void buildUiPanel()
   lv_obj_add_event_cb(button_do_not_disturb, button_do_not_disturb_event_cb, LV_EVENT_ALL, NULL);
 
   label_dnd = lv_label_create(button_do_not_disturb);
-  lv_label_set_text(label_dnd, "Do not Disturb");
+  // lv_label_set_text(label_dnd, "Do not Disturb");
   lv_obj_center(label_dnd);
   
   Backlight_slider = lv_slider_create(lv_scr_act());
   lv_obj_set_pos(Backlight_slider, 20, 580);
   lv_obj_add_flag(Backlight_slider, LV_OBJ_FLAG_CLICKABLE);    
-  lv_obj_set_size(Backlight_slider, 290, 45);              
+  lv_obj_set_size(Backlight_slider, 320, 45);              
   // lv_obj_set_style_radius(Backlight_slider, 3, LV_PART_KNOB);               // Adjust the value for more or less rounding                                            
   // // lv_obj_set_style_bg_opa(Backlight_slider, LV_OPA_TRANSP, LV_PART_KNOB);                               
   // // lv_obj_set_style_pad_all(Backlight_slider, 0, LV_PART_KNOB);                                            
@@ -247,8 +334,105 @@ void buildUiPanel()
   lv_slider_set_range(Backlight_slider, 5, Backlight_MAX);              
   lv_slider_set_value(Backlight_slider, LCD_Backlight, LV_ANIM_ON);  
   lv_obj_add_event_cb(Backlight_slider, Backlight_adjustment_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  
+  button_settings = lv_btn_create(lv_scr_act());
+  lv_obj_set_pos(button_settings, 400, 575);
+  lv_obj_set_size(button_settings, 55, 55);
+  lv_obj_add_event_cb(button_settings, button_settings_event_cb, LV_EVENT_ALL, NULL);
 
+  label_settings = lv_label_create(button_settings);
+  lv_label_set_text(label_settings, LV_SYMBOL_SETTINGS);
+  lv_obj_center(label_settings);
+
+  languageChanged(LANG_EN);
   initStyles();
+}
+
+// *********************************************************************************
+
+void radio_event_handler(lv_event_t * e)
+{
+  uint32_t * active_id = (uint32_t*)lv_event_get_user_data(e);
+  lv_obj_t * cont = lv_event_get_current_target(e);
+  lv_obj_t * act_cb = lv_event_get_target(e);
+  lv_obj_t * old_cb = lv_obj_get_child(cont, *active_id);
+
+  /*Do nothing if the container was clicked*/
+  if(act_cb == cont) return;
+
+  Set_EXIO(BUZZER_PIN, HIGH);
+  delay(100);
+  Set_EXIO(BUZZER_PIN, LOW);
+  
+  lv_obj_clear_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+  lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Uncheck the current radio button*/
+
+  *active_id = lv_obj_get_index(act_cb);
+
+  languageChanged(active_language_index);
+
+  lv_scr_load(screen_home);
+
+  // Serial.printf("Selected radio buttons: %d, %d\n\r", (int)active_language_index);
+}
+
+// *********************************************************************************
+
+static void radiobutton_create(lv_obj_t * parent, int i)
+{
+  lv_obj_t * button = lv_checkbox_create(parent);
+  lv_checkbox_set_text(button, LANG_NAMES[i]);
+  lv_obj_set_size(button, 300, 50);
+  lv_obj_set_pos(button, 10, 10 + 100 * i);
+
+  lv_obj_set_style_text_color(button, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_text_color(button, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_CHECKED);
+                            
+  lv_obj_add_flag(button, LV_OBJ_FLAG_EVENT_BUBBLE);
+
+  // lv_style_set_text_font(&style_radio, font_large, LV_PART_MAIN);
+  // lv_style_set_text_font(&style_radio_chk, font_large);
+
+  lv_obj_set_style_text_font(button, font_large, LV_PART_MAIN);
+
+  lv_obj_add_style(button, &style_radio, LV_PART_INDICATOR);
+  lv_obj_add_style(button, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
+}
+
+// *********************************************************************************
+
+void buildSettingsScreen()
+{
+  // Settings screen
+  screen_settings = lv_obj_create(NULL);
+  lv_obj_add_style(screen_settings, &styleScreen, LV_STATE_DEFAULT);
+
+  lv_style_init(&style_radio);
+  lv_style_set_radius(&style_radio, LV_RADIUS_CIRCLE);
+
+  lv_style_init(&style_radio_chk);
+  lv_style_set_bg_img_src(&style_radio_chk, NULL);
+
+  uint32_t i;
+  char buf[32];
+
+  lv_obj_t * radio_container = lv_obj_create(screen_settings);
+  // lv_obj_set_flex_flow(radio_container, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_bg_opa(radio_container, LV_OPA_0, LV_PART_MAIN);
+  lv_obj_set_style_border_opa(radio_container, LV_OPA_0, LV_PART_MAIN);
+  lv_obj_set_size(radio_container, 440, 600);
+  lv_obj_center(radio_container);
+  // lv_obj_set_style_bg_color(radio_container, LV_COLOR_SCREEN_TRANSP, LV_PART_ANY);
+
+  lv_obj_add_event_cb(radio_container, radio_event_handler, LV_EVENT_CLICKED, &active_language_index);
+
+  for(int i = 0; i < LANG_COUNT; i++)
+  {
+    radiobutton_create(radio_container, i);
+  }
+
+  // Make the first checkbox checked
+  lv_obj_add_state(lv_obj_get_child(radio_container, 0), LV_STATE_CHECKED);
 }
 
 // *********************************************************************************
@@ -260,9 +444,6 @@ void close_ui_panel()
   lv_obj_clean(lv_scr_act());
 
   // lv_style_reset(&style_text_muted);
-  // lv_style_reset(&style_title);
-  // lv_style_reset(&style_icon);
-  // lv_style_reset(&style_bullet);
 }
 
 // *********************************************************************************
@@ -297,10 +478,12 @@ void Backlight_adjustment_event_cb(lv_event_t * e)
 
 void splash_done_cb(lv_timer_t *t)
 {
-  lv_obj_t *splash = (lv_obj_t *)t->user_data;
-  lv_timer_del(t);            // one-shot
-  lv_obj_del(splash);         // free splash screen
-  buildUiPanel();             // go to your normal UI
+  // lv_obj_t *splash = (lv_obj_t *)t->user_data;
+  lv_timer_del(t); // one-shot
+  lv_obj_del(splash_img); // free splash screen
+
+  buildUiPanel(); // go to normal UI
+  buildSettingsScreen();
 }
 
 // *********************************************************************************
@@ -322,22 +505,25 @@ void backlight_fade(uint8_t from, uint8_t to, uint16_t ms)
 
 void show_splash(void)
 {
-  // // bare screen with solid background
-  // lv_obj_t *splash = lv_obj_create(NULL);
-  // lv_obj_remove_style_all(splash);
-  // lv_obj_set_style_bg_color(splash, lv_color_black(), 0);
-  // lv_obj_set_style_bg_opa(splash, LV_OPA_COVER, 0);
+  lv_style_init(&styleScreen);
 
-  // // full-screen image
-  // lv_obj_t *img = lv_img_create(splash);
-  // lv_img_set_src(img, &splash_480x640);
-  // lv_obj_center(img);
+  lv_style_set_bg_color(&styleScreen, lv_color_hex(0xed1d24));
+  lv_obj_add_style(lv_scr_act(), &styleScreen, LV_STATE_DEFAULT);
 
-  // // display it
-  // lv_scr_load(splash);
+  static lv_style_t style;
+  lv_style_init(&style);
 
-  // // keep ~2s, then switch to your main UI
-  // lv_timer_create(splash_done_cb, 2000, splash);
+  screen_home = lv_scr_act();
+
+  splash_img = lv_img_create(lv_scr_act());
+  lv_obj_add_style(splash_img, &style, 0);
+
+  LV_IMG_DECLARE(splash_480x640); // 480x640, RGB565, no alpha
+  lv_img_set_src(splash_img, &splash_480x640);
+  lv_obj_center(splash_img);
+
+  // keep ~2s, then switch to your main UI
+  lv_timer_create(splash_done_cb, 2000, splash_img);
 }
 
 // *********************************************************************************

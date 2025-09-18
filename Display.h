@@ -21,6 +21,8 @@
 #include "Display_ST7701.h"
 
 void buildUiPanel();
+void buildSettingsScreen();
+
 void close_ui_panel();
 void show_splash(void);
 
