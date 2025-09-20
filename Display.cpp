@@ -31,58 +31,128 @@
 
 #define BUZZER_PIN EXIO_PIN8
 
+LV_FONT_DECLARE(montserrat_extended);
+LV_FONT_DECLARE(noto_chinese);
+LV_FONT_DECLARE(noto_russian);
+LV_FONT_DECLARE(noto_arabic);
+LV_FONT_DECLARE(noto_japanese);
+LV_FONT_DECLARE(noto_korean);
+  
+static const lv_font_t *font_large = &montserrat_extended;
+static const lv_font_t *font_normal = &lv_font_montserrat_24;
+static const lv_font_t *font_icon = &lv_font_montserrat_32;
+static const lv_font_t *font_russian = &noto_russian;
+static const lv_font_t *font_arabic = &noto_arabic;
+static const lv_font_t *font_japanese = &noto_japanese;
+static const lv_font_t *font_korean = &noto_korean;
+static const lv_font_t *font_chinese = &noto_chinese;
+
 // Language index
 typedef enum {
     LANG_EN = 0, // English
     LANG_IT,     // Italian
+    LANG_ZH,     // Chinese (Simplified)
     LANG_FR,     // French
+    LANG_RU,     // Russian
     LANG_ES,     // Spanish
     LANG_DE,     // German
+    LANG_JA,     // Japanese
+    LANG_KO,     // Korean
     LANG_PT,     // Portuguese
+    LANG_AR,     // Arabic
+    LANG_NL,     // Dutch
+    LANG_SL,     // Slovenian
     LANG_COUNT
 } Lang;
+
+static const lv_font_t * fonts[LANG_COUNT] = {
+  font_large,  // English
+  font_large,  // Italian
+  font_chinese,  // Chinese (Simplified)
+  font_large,  // French
+  font_russian,  // Russian
+  font_large,  // Spanish
+  font_large,  // German
+  font_japanese,  // Japanese
+  font_korean,  // Korean
+  font_large,  // Portuguese
+  font_arabic,  // Arabic
+  font_large,  // Dutch
+  font_large,  // Slovenian
+};
+
+static const bool language_is_rtl[LANG_COUNT] = {
+  false,  // English
+  false,  // Italian
+  false,  // Chinese (Simplified)
+  false,  // French
+  false,  // Russian
+  false,  // Spanish
+  false,  // German
+  false,  // Japanese
+  false,  // Korean
+  false,  // Portuguese
+  true,   // Arabic
+  false,  // Dutch
+  false,  // Slovenian
+};
 
 // Display names (endonyms)
 static const char * const LANG_NAMES[LANG_COUNT] = {
     " English",
     " Italiano",
+    " 中文", // “Chinese” in Chinese
     " Français",
+    " Русский",   // Russian
     " Español",
     " Deutsch",
-    " Português"
+    " 日本語",       // Japanese
+    " 한국어",        // Korean
+    " Português",
+    " العربية", // Arabic
+    " Nederlands",      // Dutch
+    " Slovenščina"    // Slovenian
 };
 
 // “Please make up room”
 static const char * const MSG_MAKE_UP_ROOM[LANG_COUNT] = {
     "Please clean room",         // EN
     "Per favore, pulizia",       // IT
-    "S'il vous plaît, ménage",   // FR
-    // "SVP, ménage",   // FR
+    "请打扫房间",                 // ZH (also ok: u8"请清理房间")
+    "S'il vous plaît, ménage",   // FR or "SVP, ménage"
+    "Пожалуйста, уборка",        // RU
     "Por favor, limpieza",       // ES
     "Bitte Reinigung",           // DE
-    "Por favor, limpeza"         // PT
+    "清掃お願いします",           // JA (very short “Please cleaning”)
+    "청소 부탁합니다",            // KO (“Please clean” polite)
+    "Por favor, limpeza",        // PT
+    "يرجى تنظيف الغرفة",       // AR  (shorter alt: "يرجى التنظيف")
+    "A.u.b. reinigen",          // NL (short & clear)
+    "Prosimo čiščenje"          // SL (short for “Please, cleaning”)
 };
 
 // “Do not disturb”
 static const char * const MSG_DO_NOT_DISTURB[LANG_COUNT] = {
     "Do Not Disturb",       // EN
     "Non disturbare",       // IT
+    "请勿打扰",              // ZH
     "Ne pas déranger",      // FR
+    "Не беспокоить",        // RU
     "No molestar",          // ES
     "Bitte nicht stören",   // DE
-    "Não incomodar"         // PT
+    "起こさないでください",   // JA (standard hotel phrasing)
+    "방해하지 마세요",       // KO (standard DND)
+    "Não incomodar",        // PT
+    "عدم الإزعاج",          // AR
+    "Niet storen",          // NL
+    "Ne moti"               // SL
 };
 
 // *********************************************************************************
-// If you embed the image as a C array from LVGL's image converter:
-
+// embed the image as a C array from LVGL's image converter:
 // LV_IMG_DECLARE(splash_480x640); // 480x640, RGB565, no alpha
 
 // *********************************************************************************
-
-static const lv_font_t *font_large;
-static const lv_font_t *font_normal;
-static const lv_font_t *font_icon;
 
 static lv_style_t styleButtonMmr;
 static lv_style_t styleButtonDnd;
@@ -287,18 +357,18 @@ void languageChanged(int index)
 {
   lv_label_set_text(label_mmr, MSG_MAKE_UP_ROOM[index]);
   lv_label_set_text(label_dnd, MSG_DO_NOT_DISTURB[index]);
+
+  lv_style_set_text_font(&styleLabelDnd, fonts[index]);
+  lv_style_set_text_font(&styleLabelMmr, fonts[index]);
+
+  lv_obj_report_style_change(&styleLabelMmr);
+  lv_obj_report_style_change(&styleLabelDnd);
 }
 
 // *********************************************************************************
 
 void buildUiPanel()
 {
-  LV_FONT_DECLARE(montserrat_extended);
-  font_large = &montserrat_extended;                             
-  // font_large = &lv_font_montserrat_36; // LV_FONT_DEFAULT;                             
-  font_normal = &lv_font_montserrat_24; // LV_FONT_DEFAULT;
-  font_icon = &lv_font_montserrat_32;
-
   lv_style_set_bg_color(&styleScreen, lv_color_hex(COLOR_BG_SCREEN));
   lv_obj_report_style_change(&styleScreen);
 
@@ -393,7 +463,18 @@ static void radiobutton_create(lv_obj_t * parent, int i)
   // lv_style_set_text_font(&style_radio, font_large, LV_PART_MAIN);
   // lv_style_set_text_font(&style_radio_chk, font_large);
 
-  lv_obj_set_style_text_font(button, font_large, LV_PART_MAIN);
+  if(0 && language_is_rtl[i])
+  {
+    // lv_obj_set_style_base_dir(button, LV_BASE_DIR_RTL, LV_PART_MAIN);     // RTL text flow
+    // lv_obj_set_style_text_align(button, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+  }
+  else
+  {
+    lv_obj_set_style_base_dir(button, LV_BASE_DIR_LTR, LV_PART_MAIN);     // RTL text flow
+    lv_obj_set_style_text_align(button, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+  }
+
+  lv_obj_set_style_text_font(button, fonts[i], LV_PART_MAIN);
 
   lv_obj_add_style(button, &style_radio, LV_PART_INDICATOR);
   lv_obj_add_style(button, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);

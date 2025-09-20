@@ -26,7 +26,7 @@ void buildSettingsScreen();
 void close_ui_panel();
 void show_splash(void);
 
-void button_clicked(bool mmr, bool dnd);
+void button_clicked(bool mmr, bool dnd); // implemented in Hi-Touchdisplay.ino
 
 // *********************************************************************************
 // *********************************************************************************
